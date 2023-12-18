@@ -1,28 +1,35 @@
 package com.gavinjin.backend.mapper;
+import java.util.Date;
 
-import com.gavinjin.backend.model.User;
-import org.junit.Assert;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import com.gavinjin.backend.model.domain.User;
+import com.gavinjin.backend.service.UserService;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.annotation.Resource;
-import java.util.List;
 
+/**
+ * User service test
+ */
 @SpringBootTest
-@RunWith(SpringRunner.class)
-public class UserMapperTest {
+class UserMapperTest {
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
 
     @Test
-    public void testSelect() {
-        System.out.println("------ selectAll method test ------");
-        List<User> users = userMapper.selectList(null);
-        Assert.assertEquals(5, users.size());
-        users.forEach(System.out::println);
-    }
+    public void testAddUser() {
+        User user = new User();
+        user.setUsername("test-jjy");
+        user.setUserAccount("jjy-123");
+        user.setAvatarUrl("");
+        user.setGender(0);
+        user.setUserPassword("123456");
+        user.setPhone("1358555");
+        user.setEmail("ahaha@jjy.edu");
 
+        boolean result = userService.save(user);
+        Assertions.assertTrue(result);
+        Assertions.assertNotNull(user.getId());
+    }
 }

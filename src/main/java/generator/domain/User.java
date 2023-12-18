@@ -1,7 +1,9 @@
-package com.gavinjin.backend.model.domain;
+package generator.domain;
 
-import com.baomidou.mybatisplus.annotation.*;
-
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -70,18 +72,14 @@ public class User implements Serializable {
     private Date updatedTime;
 
     /**
-     * Role of the user:
-     *  0: Normal User
-     *  1: Administrator
-     *  2: VIP
-     */
-    private Integer userRole;
-
-    /**
      * Account is deleted logically
      */
-    @TableLogic
     private Integer isDeleted;
+
+    /**
+     * Role of user: 0 - Normal User, 1 - Administrator, 2 - VIP
+     */
+    private Integer userRole;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

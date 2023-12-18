@@ -3,6 +3,8 @@ package com.gavinjin.backend.service;
 import com.gavinjin.backend.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import javax.servlet.http.HttpServletRequest;
+
 /**
  * User service
  *
@@ -20,4 +22,21 @@ public interface UserService extends IService<User> {
      * @return User id
      */
     long userRegister(String userAccount, String password, String checkPassword);
+
+    /**
+     * Login a user
+     *
+     * @param userAccount User account
+     * @param password User password
+     * @return User info without sensitive information
+     */
+    User userLogin(String userAccount, String password, HttpServletRequest request);
+
+    /**
+     * Mask the user
+     *
+     * @param user
+     * @return
+     */
+    User getMaskedUser(User user);
 }

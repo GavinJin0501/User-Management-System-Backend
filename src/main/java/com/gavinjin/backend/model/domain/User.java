@@ -78,6 +78,11 @@ public class User implements Serializable {
     private Integer userRole;
 
     /**
+     * Code of the planet
+     */
+    private String planetCode;
+
+    /**
      * Account is deleted logically
      */
     @TableLogic

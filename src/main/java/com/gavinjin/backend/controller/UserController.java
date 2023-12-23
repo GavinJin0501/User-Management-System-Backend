@@ -1,6 +1,10 @@
 package com.gavinjin.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gavinjin.backend.common.BaseResponse;
+import com.gavinjin.backend.common.ResponseUtils;
+import com.gavinjin.backend.common.StatusCode;
+import com.gavinjin.backend.exception.BusinessException;
 import com.gavinjin.backend.model.domain.User;
 import com.gavinjin.backend.model.request.UserLoginRequest;
 import com.gavinjin.backend.model.request.UserRegisterRequest;
@@ -28,38 +32,50 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/register")
-    public Long userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
+    public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
         if (userRegisterRequest == null) {
-            return null;
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
         }
 
         String userAccount = userRegisterRequest.getUserAccount();
         String userPassword = userRegisterRequest.getUserPassword();
         String checkPassword = userRegisterRequest.getCheckPassword();
-        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
-            return null;
+        String planetCode = userRegisterRequest.getPlanetCode();
+        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword, planetCode)) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
         }
-        return userService.userRegister(userAccount, userPassword, checkPassword);
+        long usedId = userService.userRegister(userAccount, userPassword, checkPassword, planetCode);
+        return ResponseUtils.success(usedId);
     }
 
     @PostMapping("/login")
-    public User userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
+    public BaseResponse<User> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request) {
         if (userLoginRequest == null) {
-            return null;
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
         }
 
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            return null;
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
         }
-        return userService.userLogin(userAccount, userPassword, request);
+        User user = userService.userLogin(userAccount, userPassword, request);
+        return ResponseUtils.success(user);
+    }
+
+    @PostMapping("/logout")
+    public BaseResponse<Integer> userLogout(HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        int result = userService.userLogout(request);
+        return ResponseUtils.success(result);
     }
 
     @GetMapping("/search")
-    public List<User> searchUsers(@RequestParam(required = false) String username, HttpServletRequest request) {
+    public BaseResponse<List<User>> searchUsers(@RequestParam(required = false) String username, HttpServletRequest request) {
         if (!isAdmin(request)) {
-            return null;
+            throw new BusinessException(StatusCode.NO_AUTH);
         }
 
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -67,19 +83,36 @@ public class UserController {
             queryWrapper.like("username", username);
         }
         List<User> userList = userService.list(queryWrapper);
-        return userList.stream().map(user -> userService.getMaskedUser(user)).collect(Collectors.toList());
+        List<User> resultList = userList.stream().map(user -> userService.getMaskedUser(user)).collect(Collectors.toList());
+        return ResponseUtils.success(resultList);
     }
 
     @PostMapping("/delete")
-    public boolean deleteUser(@RequestBody long id, HttpServletRequest request) {
+    public BaseResponse<Boolean> deleteUser(@RequestBody long id, HttpServletRequest request) {
         if (!isAdmin(request)) {
-            return false;
+            throw new BusinessException(StatusCode.NO_AUTH);
         }
 
         if (id <= 0) {
-            return false;
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
         }
-        return userService.removeById(id);
+        boolean b = userService.removeById(id);
+        return ResponseUtils.success(b);
+    }
+
+    @GetMapping("/current")
+    public BaseResponse<User> getCurrentUser(HttpServletRequest request) {
+        User user = (User) request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (user == null) {
+            throw new BusinessException(StatusCode.NOT_LOGGED_IN);
+        }
+
+        // Update the user info if changed
+        long userId = user.getId();
+        // TODO: check if the user is valid
+        user = userService.getById(userId);
+        User maskedUser = userService.getMaskedUser(user);
+        return ResponseUtils.success(maskedUser);
     }
 
     /**

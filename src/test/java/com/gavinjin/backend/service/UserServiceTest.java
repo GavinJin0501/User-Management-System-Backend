@@ -16,7 +16,8 @@ class UserServiceTest {
         String userAccount = "te st1";
         String userPassword = "12345678";
         String checkPassword = "12345678";
-        long l = userService.userRegister(userAccount, userPassword, checkPassword);
+        String planetCode = "haha";
+        long l = userService.userRegister(userAccount, userPassword, checkPassword, planetCode);
         Assertions.assertNotEquals(-1, l);
     }
 }

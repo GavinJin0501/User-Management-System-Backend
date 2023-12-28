@@ -54,6 +54,7 @@ public class UserController {
             throw new BusinessException(StatusCode.PARAMS_ERROR);
         }
 
+
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {

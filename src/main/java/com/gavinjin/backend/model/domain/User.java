@@ -83,6 +83,11 @@ public class User implements Serializable {
     private String planetCode;
 
     /**
+     * Tags of the user (json)
+     */
+    private String tags;
+
+    /**
      * Account is deleted logically
      */
     @TableLogic

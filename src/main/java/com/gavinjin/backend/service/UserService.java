@@ -4,6 +4,7 @@ import com.gavinjin.backend.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * User service
@@ -47,4 +48,15 @@ public interface UserService extends IService<User> {
      * @param request
      */
     int userLogout(HttpServletRequest request);
+
+    @Deprecated
+    List<User> searchUsersByTagsBySQL(List<String> tagNameList);
+
+    /**
+     * Search users based on tags
+     *
+     * @param tagNameList
+     * @return
+     */
+    List<User> searchUsersByTags(List<String> tagNameList);
 }

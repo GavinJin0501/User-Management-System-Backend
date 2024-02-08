@@ -13,7 +13,10 @@ spring:
     timeout: 86400
 
   profiles:
-#    active: prod
+    active: dev
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 
 server:
   port: 8080
@@ -26,3 +29,5 @@ mybatis-plus:
       logic-delete-field: isDeleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

@@ -7,14 +7,22 @@ import com.gavinjin.backend.exception.BusinessException;
 import com.gavinjin.backend.mapper.UserMapper;
 import com.gavinjin.backend.model.domain.User;
 import com.gavinjin.backend.service.UserService;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.gavinjin.backend.constant.UserConstant.USER_LOGIN_STATE;
 
@@ -152,6 +160,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         maskedUser.setUserStatus(user.getUserStatus());
         maskedUser.setCreatedTime(user.getCreatedTime());
         maskedUser.setPlanetCode(user.getPlanetCode());
+        maskedUser.setTags(user.getTags());
         return maskedUser;
     }
 
@@ -160,6 +169,48 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         request.getSession().removeAttribute(USER_LOGIN_STATE);
         return 1;
     }
+
+    @Deprecated
+    @Override
+    public List<User> searchUsersByTagsBySQL(List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        for (String tagName : tagNameList) {
+            queryWrapper = queryWrapper.like("tags", tagName);
+        }
+        List<User> users = userMapper.selectList(queryWrapper);
+        return users.stream().map(this::getMaskedUser).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<User> searchUsersByTags(List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        List<User> users = userMapper.selectList(queryWrapper);
+        Gson gson = new Gson();
+        return users.stream().filter(user -> {
+            String tagsStr = user.getTags();
+            // if (StringUtils.isAnyBlank(tagsStr)) {
+            //     return false;
+            // }
+            Set<String> tempTagNameList = gson.fromJson(tagsStr, new TypeToken<Set<String>>(){}.getType());
+            tempTagNameList = Optional.ofNullable(tempTagNameList).orElse(new HashSet<>());
+
+            for (String tagName : tagNameList) {
+                if (!tempTagNameList.contains(tagName)) {
+                    return false;
+                }
+            }
+            return true;
+        }).map(this::getMaskedUser).collect(Collectors.toList());
+    }
+
 }
 
 

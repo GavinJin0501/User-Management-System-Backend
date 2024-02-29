@@ -11,6 +11,7 @@ import com.gavinjin.backend.model.request.UserRegisterRequest;
 import com.gavinjin.backend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -27,6 +28,7 @@ import static com.gavinjin.backend.constant.UserConstant.USER_LOGIN_STATE;
 @RestController
 @RequestMapping("/user")
 @Slf4j
+@CrossOrigin()
 public class UserController {
     @Resource
     private UserService userService;
@@ -86,6 +88,15 @@ public class UserController {
         List<User> userList = userService.list(queryWrapper);
         List<User> resultList = userList.stream().map(user -> userService.getMaskedUser(user)).collect(Collectors.toList());
         return ResponseUtils.success(resultList);
+    }
+
+    @GetMapping("/search/tags")
+    public BaseResponse<List<User>> searchUsersByTags(@RequestParam(required = false) List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        List<User> users = userService.searchUsersByTags(tagNameList);
+        return ResponseUtils.success(users);
     }
 
     @PostMapping("/delete")

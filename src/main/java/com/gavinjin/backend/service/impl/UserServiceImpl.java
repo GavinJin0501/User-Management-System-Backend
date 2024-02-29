@@ -113,10 +113,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(StatusCode.PARAMS_ERROR, "Parameters empty");
         }
         if (userAccount.length() < 4) {
-            throw new BusinessException(StatusCode.PARAMS_ERROR, "User account is too long");
+            throw new BusinessException(StatusCode.PARAMS_ERROR, "User account is too short");
         }
         if (password.length() < 8) {
-            throw new BusinessException(StatusCode.PARAMS_ERROR, "Password is too long");
+            throw new BusinessException(StatusCode.PARAMS_ERROR, "Password is too short");
         }
 
         // 2. User account can not contain special characters

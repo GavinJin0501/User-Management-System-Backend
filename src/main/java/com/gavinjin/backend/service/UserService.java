@@ -6,6 +6,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
+import static com.gavinjin.backend.constant.UserConstant.ADMIN_ROLE;
+import static com.gavinjin.backend.constant.UserConstant.USER_LOGIN_STATE;
+
 /**
  * User service
  *
@@ -59,4 +62,36 @@ public interface UserService extends IService<User> {
      * @return
      */
     List<User> searchUsersByTags(List<String> tagNameList);
+
+    /**
+     * Update the user
+     *
+     * @param user
+     * @param loginUser
+     * @return
+     */
+    int updateUser(User user, User loginUser);
+
+    /**
+     * Obtain the current user info
+     *
+     * @return
+     */
+    User getLoginUser(HttpServletRequest request);
+
+    /**
+     * Check if the current logged-in user is an administrator
+     *
+     * @param request
+     * @return
+     */
+    boolean isAdmin(HttpServletRequest request);
+
+    /**
+     * Check if the current logged-in user is an administrator
+     *
+     * @param loginUser
+     * @return
+     */
+    boolean isAdmin(User loginUser);
 }

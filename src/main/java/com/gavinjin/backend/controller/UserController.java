@@ -77,7 +77,7 @@ public class UserController {
 
     @GetMapping("/search")
     public BaseResponse<List<User>> searchUsers(@RequestParam(required = false) String username, HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!userService.isAdmin(request)) {
             throw new BusinessException(StatusCode.NO_AUTH);
         }
 
@@ -99,9 +99,23 @@ public class UserController {
         return ResponseUtils.success(users);
     }
 
+    @PostMapping("/update")
+    public BaseResponse<Integer> updateUser(@RequestBody User user, HttpServletRequest request) {
+        // check if the parameter is empty
+        if (user == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        if (loginUser == null) {
+            throw new BusinessException(StatusCode.NO_AUTH);
+        }
+        int result = userService.updateUser(user, loginUser);
+        return ResponseUtils.success(result);
+    }
+
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteUser(@RequestBody long id, HttpServletRequest request) {
-        if (!isAdmin(request)) {
+        if (!userService.isAdmin(request)) {
             throw new BusinessException(StatusCode.NO_AUTH);
         }
 
@@ -125,17 +139,5 @@ public class UserController {
         user = userService.getById(userId);
         User maskedUser = userService.getMaskedUser(user);
         return ResponseUtils.success(maskedUser);
-    }
-
-    /**
-     * Check if the current logged-in user is an administrator
-     *
-     * @param request
-     * @return
-     */
-    private boolean isAdmin(HttpServletRequest request) {
-        // Access control: only administrator can access
-        User user = (User) request.getSession().getAttribute(USER_LOGIN_STATE);
-        return user != null && user.getUserRole() == ADMIN_ROLE;
     }
 }

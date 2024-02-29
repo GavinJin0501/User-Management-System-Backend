@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.gavinjin.backend.constant.UserConstant.ADMIN_ROLE;
 import static com.gavinjin.backend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -211,6 +212,66 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }).map(this::getMaskedUser).collect(Collectors.toList());
     }
 
+    @Override
+    public User getLoginUser(HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (userObj == null) {
+            throw new BusinessException(StatusCode.NO_AUTH);
+        }
+
+        return (User) userObj;
+    }
+
+    /**
+     * Check if the current logged-in user is an administrator
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public boolean isAdmin(HttpServletRequest request) {
+        // Access control: only administrator can access
+        User user = (User) request.getSession().getAttribute(USER_LOGIN_STATE);
+        return user != null && user.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * Check if the current logged-in user is an administrator
+     *
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public boolean isAdmin(User loginUser) {
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+    }
+
+    @Override
+    public int updateUser(User updateUser, User loginUser) {
+        // Check if the updateUser is valid
+        long updateUserId = updateUser.getId();
+        if (updateUserId <= 0) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        // Check if the user has the authorization for update
+        //   If the role is admin, he can update all users
+        //   If the role is not admin, he can only update himself
+        if (!isAdmin(loginUser) && updateUserId != loginUser.getId()) {
+            throw new BusinessException(StatusCode.NO_AUTH);
+        }
+
+        User oldUser = userMapper.selectById(updateUserId);
+        if (oldUser == null) {
+            throw new BusinessException(StatusCode.NULL_ERROR);
+        }
+
+        return userMapper.updateById(updateUser);
+    }
 }
 
 

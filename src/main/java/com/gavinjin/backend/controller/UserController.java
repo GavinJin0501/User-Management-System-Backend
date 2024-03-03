@@ -1,9 +1,12 @@
 package com.gavinjin.backend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gavinjin.backend.common.BaseResponse;
 import com.gavinjin.backend.common.ResponseUtils;
 import com.gavinjin.backend.common.StatusCode;
+import com.gavinjin.backend.config.RedisTemplateConfig;
 import com.gavinjin.backend.exception.BusinessException;
 import com.gavinjin.backend.model.domain.User;
 import com.gavinjin.backend.model.request.UserLoginRequest;
@@ -11,12 +14,15 @@ import com.gavinjin.backend.model.request.UserRegisterRequest;
 import com.gavinjin.backend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.gavinjin.backend.constant.UserConstant.ADMIN_ROLE;
@@ -32,6 +38,9 @@ import static com.gavinjin.backend.constant.UserConstant.USER_LOGIN_STATE;
 public class UserController {
     @Resource
     private UserService userService;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
 
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
@@ -97,6 +106,31 @@ public class UserController {
         }
         List<User> users = userService.searchUsersByTags(tagNameList);
         return ResponseUtils.success(users);
+    }
+
+    @GetMapping("/recommend")
+    public BaseResponse<Page<User>> recommendUsers(long pageSize, long pageNum, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        String redisKey = String.format("gavinjin:user:recommend:%s", loginUser.getId());
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+
+        // return the cached value if there is one
+        Page<User> userPage = (Page<User>) valueOperations.get(redisKey);
+        if (userPage != null) {
+            return ResponseUtils.success(userPage);
+        }
+
+        // query the database if there is no cache
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        userPage = userService.page(new Page<>(pageNum , pageSize), queryWrapper);
+
+        // write the value into the cache
+        try {
+            valueOperations.set(redisKey, userPage, 10 , TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("redis set key error", e);
+        }
+        return ResponseUtils.success(userPage);
     }
 
     @PostMapping("/update")

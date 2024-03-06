@@ -116,7 +116,7 @@ public class UserController {
 
         // return the cached value if there is one
         Page<User> userPage = (Page<User>) valueOperations.get(redisKey);
-        if (userPage != null) {
+        if (userPage != null) { 
             return ResponseUtils.success(userPage);
         }
 

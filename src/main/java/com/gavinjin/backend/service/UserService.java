@@ -1,13 +1,10 @@
 package com.gavinjin.backend.service;
 
-import com.gavinjin.backend.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.gavinjin.backend.model.domain.User;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
-
-import static com.gavinjin.backend.constant.UserConstant.ADMIN_ROLE;
-import static com.gavinjin.backend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * User service

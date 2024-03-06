@@ -19,6 +19,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public BaseResponse<?> businessExceptionHandler(RuntimeException e) {
         log.error("runtimeException", e);
-        return ResponseUtils.error(StatusCode.SYSTEM_ERROR, e.getMessage(), "");
+        return ResponseUtils.error(StatusCode.SYSTEM_ERROR, "Internal Server Error", "");
     }
 }

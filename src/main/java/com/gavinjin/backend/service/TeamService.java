@@ -3,6 +3,12 @@ package com.gavinjin.backend.service;
 import com.gavinjin.backend.model.domain.Team;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.gavinjin.backend.model.domain.User;
+import com.gavinjin.backend.model.dto.TeamQuery;
+import com.gavinjin.backend.model.request.TeamJoinRequest;
+import com.gavinjin.backend.model.request.TeamUpdateRequest;
+import com.gavinjin.backend.model.vo.TeamUserVO;
+
+import java.util.List;
 
 /**
 * @author gavin
@@ -18,4 +24,31 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     long createTeam(Team team, User loginUser);
+
+    /**
+     * Search teams
+     *
+     * @param teamQuery
+     * @param isAdmin
+     * @return
+     */
+    List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin);
+
+    /**
+     * Update a team
+     *
+     * @param teamUpdateRequest
+     * @param loginUser
+     * @return
+     */
+    boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser);
+
+    /**
+     * Join a team
+     *
+     * @param teamJoinRequest
+     * @param loginUser
+     * @return
+     */
+    boolean joinTeam(TeamJoinRequest teamJoinRequest, User loginUser);
 }

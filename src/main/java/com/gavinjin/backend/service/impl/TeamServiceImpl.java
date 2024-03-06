@@ -7,19 +7,24 @@ import com.gavinjin.backend.exception.BusinessException;
 import com.gavinjin.backend.model.domain.Team;
 import com.gavinjin.backend.model.domain.User;
 import com.gavinjin.backend.model.domain.UserTeam;
+import com.gavinjin.backend.model.dto.TeamQuery;
 import com.gavinjin.backend.model.enums.TeamStatusEnum;
+import com.gavinjin.backend.model.request.TeamJoinRequest;
+import com.gavinjin.backend.model.request.TeamUpdateRequest;
+import com.gavinjin.backend.model.vo.TeamUserVO;
+import com.gavinjin.backend.model.vo.UserVO;
 import com.gavinjin.backend.service.TeamService;
 import com.gavinjin.backend.mapper.TeamMapper;
+import com.gavinjin.backend.service.UserService;
 import com.gavinjin.backend.service.UserTeamService;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateUtils;
-import org.apache.poi.ss.usermodel.DateUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
-import java.util.Date;
-import java.util.Optional;
+import java.util.*;
 
 /**
 * @author gavin
@@ -28,10 +33,13 @@ import java.util.Optional;
 */
 @Service
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
-    implements TeamService{
+    implements TeamService {
 
     @Resource
     private UserTeamService userTeamService;
+
+    @Resource
+    private UserService userService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -110,8 +118,165 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
         return teamId;
     }
+
+    @Override
+    public List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin) {
+        QueryWrapper<Team> queryWrapper = new QueryWrapper<>();
+        if (teamQuery != null) {
+            Long id = teamQuery.getId();
+            if (id != null && id > 0) {
+                queryWrapper.eq("id", id);
+            }
+            String searchText = teamQuery.getSearchText();
+            if (StringUtils.isNotBlank(searchText)) {
+                queryWrapper.and(qw -> qw.like("name", searchText).or().like("description", searchText));
+            }
+            String name = teamQuery.getName();
+            if (StringUtils.isNotBlank(name)) {
+                queryWrapper.like("name", name);
+            }
+            String description = teamQuery.getDescription();
+            if (StringUtils.isNotBlank(description)) {
+                queryWrapper.like("description", description);
+            }
+            Integer maxNum = teamQuery.getMaxNum();
+            if (maxNum != null && maxNum > 0) {
+                queryWrapper.eq("max_num", maxNum);
+            }
+            Long userid = teamQuery.getUserid();
+            if (userid != null && userid > 0) {
+                queryWrapper.eq("userId", userid);
+            }
+            Integer status = teamQuery.getStatus();
+            TeamStatusEnum statusEnum = TeamStatusEnum.getEnumByValue(status);
+            if (statusEnum == null) {
+                statusEnum = TeamStatusEnum.PUBLIC;
+            }
+            if (!isAdmin && !statusEnum.equals(TeamStatusEnum.PUBLIC)) {
+                throw new BusinessException(StatusCode.NO_AUTH);
+            }
+            queryWrapper.eq("status", statusEnum.getValue());
+        }
+        // Do not show the expired teams
+        queryWrapper.and(qw -> qw.isNull("expiration").or().gt("expiration", new Date()));
+
+        List<Team> teamList = list(queryWrapper);
+        if (CollectionUtils.isEmpty(teamList)) {
+            return new ArrayList<>();
+        }
+        List<TeamUserVO> teamUserVOList = new ArrayList<>();
+
+        // Find the team leader
+        for (Team team : teamList) {
+            Long userid = team.getUserid();
+            if (userid == null) {
+                continue;
+            }
+            User user = userService.getById(userid);
+            TeamUserVO teamUserVO = new TeamUserVO();
+            BeanUtils.copyProperties(team, teamUserVO);
+            if (user != null) {
+                UserVO userVO = new UserVO();
+                BeanUtils.copyProperties(user, userVO);
+                teamUserVO.setTeamCreator(userVO);
+            }
+            teamUserVOList.add(teamUserVO);
+        }
+
+        return teamUserVOList;
+    }
+
+    @Override
+    public boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser) {
+        if (teamUpdateRequest == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        Long id = teamUpdateRequest.getId();
+        if (id == null || id < 0) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        Team oldTeam = getById(id);
+        if (oldTeam == null) {
+            throw new BusinessException(StatusCode.NULL_ERROR, "Can not find the team");
+        }
+
+        // Only admin or team creator can edit team information
+        if (!Objects.equals(oldTeam.getUserid(), loginUser.getId()) && !userService.isAdmin(loginUser)) {
+            throw new BusinessException(StatusCode.NO_AUTH);
+        }
+        TeamStatusEnum teamStatusEnum = TeamStatusEnum.getEnumByValue(teamUpdateRequest.getStatus());
+        if (TeamStatusEnum.SECRET.equals(teamStatusEnum)) {
+            if (StringUtils.isBlank(teamUpdateRequest.getPassword())) {
+                throw new BusinessException(StatusCode.PARAMS_ERROR, "Secret team must have password");
+            }
+        }
+
+        Team updateTeam = new Team();
+        BeanUtils.copyProperties(teamUpdateRequest, updateTeam);
+        return updateById(updateTeam);
+    }
+
+    @Override
+    public boolean joinTeam(TeamJoinRequest teamJoinRequest, User loginUser) {
+        if (teamJoinRequest == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        Long teamId = teamJoinRequest.getTeamId();
+        if (teamId == null || teamId < 0) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        Team team = getById(teamId);
+        if (team == null) {
+            throw new BusinessException(StatusCode.NULL_ERROR, "Team does not exist");
+        }
+        Date expiration = team.getExpiration();
+        if (expiration != null && new Date().after(expiration)) {
+            throw new BusinessException(StatusCode.NULL_ERROR, "Team has expired");
+        }
+        Integer status = team.getStatus();
+        TeamStatusEnum statusEnum = TeamStatusEnum.getEnumByValue(status);
+        if (statusEnum.equals(TeamStatusEnum.PRIVATE)) {
+            throw new BusinessException(StatusCode.NULL_ERROR, "Private team cannot be joined");
+        }
+        String password = teamJoinRequest.getPassword();
+        if (statusEnum.equals(TeamStatusEnum.SECRET)) {
+            if (StringUtils.isBlank(password) || !password.equals(team.getPassword())) {
+                throw new BusinessException(StatusCode.NULL_ERROR, "Invalid password");
+            }
+        }
+
+        // One user can join at most 5 teams at a time
+        long userId = loginUser.getId();
+        QueryWrapper<UserTeam> userTeamQueryWrapper = new QueryWrapper<>();
+        userTeamQueryWrapper.eq("userId", userId);
+        long hasJoinedNum = userTeamService.count(userTeamQueryWrapper);
+        if (hasJoinedNum >= 5) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR, "Can join at most 5 teams");
+        }
+
+        // Can not join a team twice
+        userTeamQueryWrapper = new QueryWrapper<>();
+        userTeamQueryWrapper.eq("userId", userId);
+        userTeamQueryWrapper.eq("teamId", teamId);
+        hasJoinedNum = userTeamService.count(userTeamQueryWrapper);
+        if (hasJoinedNum > 0) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR, "Current user has already joined the team");
+        }
+
+        // Check if the team has already been filled
+        userTeamQueryWrapper = new QueryWrapper<>();
+        userTeamQueryWrapper.eq("teamId", teamId);
+        hasJoinedNum = userTeamService.count(userTeamQueryWrapper);
+        if (hasJoinedNum >= team.getMaxNum()) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR, "Team is full");
+        }
+
+        // Create the user-team relation
+        UserTeam userTeam = new UserTeam();
+        userTeam.setUserid(userId);
+        userTeam.setTeamid(teamId);
+        userTeam.setJoinedTime(new Date());
+        return userTeamService.save(userTeam);
+    }
 }
-
-
-
-

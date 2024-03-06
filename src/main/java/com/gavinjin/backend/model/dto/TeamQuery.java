@@ -20,6 +20,11 @@ public class TeamQuery extends PageRequest {
     private Long id;
 
     /**
+     * Search key text on team name and description
+     */
+    private String searchText;
+
+    /**
      * Team name
      */
     private String name;

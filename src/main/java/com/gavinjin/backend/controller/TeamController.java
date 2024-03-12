@@ -11,6 +11,7 @@ import com.gavinjin.backend.model.domain.User;
 import com.gavinjin.backend.model.dto.TeamQuery;
 import com.gavinjin.backend.model.request.TeamAddRequest;
 import com.gavinjin.backend.model.request.TeamJoinRequest;
+import com.gavinjin.backend.model.request.TeamQuitRequest;
 import com.gavinjin.backend.model.request.TeamUpdateRequest;
 import com.gavinjin.backend.model.vo.TeamUserVO;
 import com.gavinjin.backend.service.TeamService;
@@ -125,6 +126,16 @@ public class TeamController {
 
         User loginUser = userService.getLoginUser(request);
         boolean result = teamService.joinTeam(teamJoinRequest, loginUser);
+        return ResponseUtils.success(result);
+    }
+
+    @PostMapping("/quit")
+    public BaseResponse<Boolean> quitTeam(@RequestBody TeamQuitRequest teamQuitRequest, HttpServletRequest request) {
+        if (teamQuitRequest == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        boolean result = teamService.quitTeam(teamQuitRequest, loginUser);
         return ResponseUtils.success(result);
     }
 }

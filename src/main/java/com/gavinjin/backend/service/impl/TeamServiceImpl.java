@@ -4,17 +4,18 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gavinjin.backend.common.StatusCode;
 import com.gavinjin.backend.exception.BusinessException;
+import com.gavinjin.backend.mapper.TeamMapper;
 import com.gavinjin.backend.model.domain.Team;
 import com.gavinjin.backend.model.domain.User;
 import com.gavinjin.backend.model.domain.UserTeam;
 import com.gavinjin.backend.model.dto.TeamQuery;
 import com.gavinjin.backend.model.enums.TeamStatusEnum;
 import com.gavinjin.backend.model.request.TeamJoinRequest;
+import com.gavinjin.backend.model.request.TeamQuitRequest;
 import com.gavinjin.backend.model.request.TeamUpdateRequest;
 import com.gavinjin.backend.model.vo.TeamUserVO;
 import com.gavinjin.backend.model.vo.UserVO;
 import com.gavinjin.backend.service.TeamService;
-import com.gavinjin.backend.mapper.TeamMapper;
 import com.gavinjin.backend.service.UserService;
 import com.gavinjin.backend.service.UserTeamService;
 import org.apache.commons.lang3.StringUtils;
@@ -278,5 +279,68 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         userTeam.setTeamid(teamId);
         userTeam.setJoinedTime(new Date());
         return userTeamService.save(userTeam);
+    }
+
+    @Override
+    public boolean quitTeam(TeamQuitRequest teamQuitRequest, User loginUser) {
+        if (teamQuitRequest == null) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        Long teamId = teamQuitRequest.getTeamId();
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR);
+        }
+
+        Team team = this.getById(teamId);
+        if (team == null) {
+            throw new BusinessException(StatusCode.NULL_ERROR);
+        }
+
+        long userId = loginUser.getId();
+        UserTeam userTeam = new UserTeam();
+        userTeam.setTeamid(teamId);
+        userTeam.setUserid(userId);
+        QueryWrapper<UserTeam> queryWrapper = new QueryWrapper<>(userTeam);
+        long count = userTeamService.count(queryWrapper);
+        if (count == 0) {
+            throw new BusinessException(StatusCode.PARAMS_ERROR, "Didn't enter the team");
+        }
+
+        // if the team has only 1 person, delete the team
+        long teamHasJoinNum = countTeamUserByTeamId(teamId);
+        if (teamHasJoinNum == 1) {
+            removeById(teamId);
+        } else {
+            // check if is leader
+            if (team.getUserid() == userId) {
+                // give out the leader to another people in the team
+                QueryWrapper<UserTeam> userTeamQueryWrapper = new QueryWrapper<>();
+                queryWrapper.eq("teamId", teamId);
+                queryWrapper.last("order by id asc limit 2");
+                List<UserTeam> userTeamList = userTeamService.list(userTeamQueryWrapper);
+                if (CollectionUtils.isEmpty(userTeamList) || userTeamList.size() < 2) {
+                    throw new BusinessException(StatusCode.SYSTEM_ERROR);
+                }
+                UserTeam nextUserTeam = userTeamList.get(1);
+                Long nextTeamLeaderId = nextUserTeam.getUserid();
+
+                // Update the new leader
+                Team updateTeam = new Team();
+                updateTeam.setId(teamId);
+                updateTeam.setUserid(nextTeamLeaderId);
+                boolean result = updateById(updateTeam);
+                if (!result) {
+                    throw new BusinessException(StatusCode.SYSTEM_ERROR, "Fail to update leader");
+                }
+            }
+        }
+        return userTeamService.remove(queryWrapper);
+    }
+
+    private long countTeamUserByTeamId(long teamId) {
+        QueryWrapper<UserTeam> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("teamId", teamId);
+        return userTeamService.count(queryWrapper);
     }
 }
